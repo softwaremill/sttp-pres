@@ -1,0 +1,13 @@
+sttp
+
+* immutable request description
+
+* request templates
+
+* programmer-friendly, discoverable, no-surprises API
+
+* separate request definition from execution
+
+* support both synchronous and asynchronous execution
+
+* minimum dependencies

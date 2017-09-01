@@ -1,0 +1,10 @@
+* a number of great Scala HTTP clients:
+  * dispatch
+  * play-ws
+  * akka-http client
+  * scalaj
+  * ...
+
+* different approaches to client API
+
+* we can do better!
