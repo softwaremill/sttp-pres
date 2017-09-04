@@ -2,6 +2,8 @@ package com.softwaremill.demo
 
 import java.nio.ByteBuffer
 
+import akka.actor.ActorSystem
+import akka.pattern.CircuitBreaker
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
 import com.softwaremill.sttp._
@@ -10,8 +12,10 @@ import com.softwaremill.sttp.asynchttpclient.monix.AsyncHttpClientMonixHandler
 import monix.eval.Task
 import monix.reactive.Observable
 
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.duration._
+import scala.util.Try
 
 object Main extends App {
   def sync(): Unit = {
@@ -163,5 +167,52 @@ object Main extends App {
     println(resp.unsafeBody)
   }
 
-  errors()
+  def circuitBreaker(): Unit = {
+    class CircuitBreakerHandler[S](delegate: SttpHandler[Future, S], as: ActorSystem) extends SttpHandler[Future, S] {
+
+      private val cb = new CircuitBreaker(as.scheduler,
+        maxFailures = 3,
+        callTimeout = 10.seconds,
+        resetTimeout = 10.seconds)
+        .onClose(println("CLOSE"))
+        .onOpen(println("OPEN"))
+        .onHalfOpen(println("HALF-OPEN"))
+
+      override def send[T](request: Request[T, S]): Future[Response[T]] = {
+        cb.withCircuitBreaker(delegate.send(request).map { r =>
+          if (!r.isSuccess) throw new RuntimeException(s"Status code ${r.code}")
+          r
+        })
+      }
+
+      override def responseMonad: MonadError[Future] = delegate.responseMonad
+
+      override def close: Unit = delegate.close()
+    }
+
+    val reqOk = sttp.get(uri"http://localhost:51823/echo/get")
+    val reqError = sttp.get(uri"http://localhost:51823/404")
+
+    val as = ActorSystem("example")
+    implicit val handler = new CircuitBreakerHandler(AkkaHttpHandler.usingActorSystem(as), as)
+
+    def runAndLog(r: Request[String, Nothing]): Unit = {
+      println(Try(Await.result(r.send().map(_.unsafeBody), 60.seconds)))
+    }
+
+    runAndLog(reqError)
+    runAndLog(reqError)
+    runAndLog(reqError)
+    runAndLog(reqError)
+    runAndLog(reqError)
+    runAndLog(reqError)
+    runAndLog(reqError)
+    runAndLog(reqError)
+    while (true) {
+      Thread.sleep(500L)
+      runAndLog(reqOk)
+    }
+  }
+
+  circuitBreaker()
 }
