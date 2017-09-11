@@ -1,6 +1,6 @@
 To summarize, sttp supports:
 
-* synchronous and asynchronous execution via Futures/Scalaz/Monix
+* synchronous and asynchronous execution via Futures/Scalaz/Monix/Cats
 * HttpURLConnection, Akka, Async HTTP Client and OkHttp backends
 
 * uri interpolator
