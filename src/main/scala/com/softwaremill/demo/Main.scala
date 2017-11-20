@@ -6,9 +6,9 @@ import akka.actor.ActorSystem
 import akka.pattern.CircuitBreaker
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
-import com.softwaremill.sttp._
-import com.softwaremill.sttp.akkahttp.AkkaHttpHandler
-import com.softwaremill.sttp.asynchttpclient.monix.AsyncHttpClientMonixHandler
+
+import com.softwaremill.sttp.akkahttp.AkkaHttpBackend
+import com.softwaremill.sttp.asynchttpclient.monix.AsyncHttpClientMonixBackend
 import monix.eval.Task
 import monix.reactive.Observable
 
@@ -18,9 +18,11 @@ import scala.concurrent.duration._
 import scala.util.Try
 
 object Main extends App {
+  import com.softwaremill.sttp._
+
   def sync(): Unit = {
     val req = sttp.get(uri"http://localhost:51823/echo/get")
-    implicit val handler = HttpURLConnectionHandler
+    implicit val backend = HttpURLConnectionBackend()
 
     val resp = req.send()
     println(resp.unsafeBody)
@@ -35,7 +37,7 @@ object Main extends App {
     val req = sttp.get(uri"http://localhost:51823/echo/get")
     val req2 = sttp.post(uri"http://localhost:51823/echo/post").body("Hello world!")
 
-    implicit val handler = AkkaHttpHandler()
+    implicit val backend = AkkaHttpBackend()
 
     val resp: Future[Response[String]] = req.send()
     val resp2: Future[Response[String]] = req2.send()
@@ -46,7 +48,7 @@ object Main extends App {
     } {
       println(r1)
       println(r2)
-      handler.close()
+      backend.close()
     }
   }
 
@@ -56,7 +58,7 @@ object Main extends App {
       .response(asByteArray)
       .get(uri"http://example.com") // comment out
 
-    implicit val handler = HttpURLConnectionHandler
+    implicit val backend = HttpURLConnectionBackend
 
     reqTemplate.send()
   }
@@ -86,8 +88,8 @@ object Main extends App {
     val stream = Source(List(ByteString("Hello, "), ByteString("Akka Streams")))
     val req = sttp.post(uri"http://localhost:51823/echo/post").streamBody(stream)
 
-    implicit val handler: SttpHandler[Future, Source[ByteString, Any]] = AkkaHttpHandler()
-    // implicit val handler = HttpURLConnectionHandler // won't compile
+    implicit val backend: SttpBackend[Future, Source[ByteString, Any]] = AkkaHttpBackend()
+    // implicit val backend = HttpURLConnectionBackend // won't compile
 
     val resp = req.send()
 
@@ -95,14 +97,14 @@ object Main extends App {
       r <- resp
     } {
       println(r)
-      handler.close()
+      backend.close()
     }
   }
 
   def streamingMonix(): Unit = {
     val req = sttp.post(uri"http://localhost:51823/echo/post").body("Hello, Monix!")
 
-    implicit val handler: SttpHandler[Task, Observable[ByteBuffer]] = AsyncHttpClientMonixHandler()
+    implicit val backend: SttpBackend[Task, Observable[ByteBuffer]] = AsyncHttpClientMonixBackend()
 
     import monix.execution.Scheduler.Implicits.global
 
@@ -119,7 +121,7 @@ object Main extends App {
     }.map { body =>
       println(body)
 
-      handler.close()
+      backend.close()
     }
   }
 
@@ -138,7 +140,7 @@ object Main extends App {
 
   def deserializeResponses(): Unit = {
     val req = sttp.get(uri"http://localhost:51823/echo/get")
-    implicit val handler = HttpURLConnectionHandler
+    implicit val backend = HttpURLConnectionBackend()
 
     val asList: ResponseAs[List[String], Nothing] = asString.map(_.split(" ").toList)
 
@@ -148,7 +150,7 @@ object Main extends App {
 
   def serializingRequests(): Unit = {
     val req = sttp.get(uri"http://localhost:51823/echo/get")
-    implicit val handler = HttpURLConnectionHandler
+    implicit val backend = HttpURLConnectionBackend()
 
     val listBody = List("These", "are", "some", "wise", "words")
     implicit val listSerializer: BodySerializer[List[String]] = l => StringBody(l.mkString("-"), "utf-8")
@@ -159,7 +161,7 @@ object Main extends App {
 
   def errors(): Unit = {
     val req = sttp.get(uri"http://localhost:51823/notfound")
-    implicit val handler = HttpURLConnectionHandler
+    implicit val backend = HttpURLConnectionBackend()
 
     val resp = req.send()
     println(resp.code)
@@ -168,7 +170,7 @@ object Main extends App {
   }
 
   def circuitBreaker(): Unit = {
-    class CircuitBreakerHandler[S](delegate: SttpHandler[Future, S], as: ActorSystem) extends SttpHandler[Future, S] {
+    class CircuitBreakerBackend[S](delegate: SttpBackend[Future, S], as: ActorSystem) extends SttpBackend[Future, S] {
 
       private val cb = new CircuitBreaker(as.scheduler,
         maxFailures = 3,
@@ -194,7 +196,7 @@ object Main extends App {
     val reqError = sttp.get(uri"http://localhost:51823/404")
 
     val as = ActorSystem("example")
-    implicit val handler = new CircuitBreakerHandler(AkkaHttpHandler.usingActorSystem(as), as)
+    implicit val backend = new CircuitBreakerBackend(AkkaHttpBackend.usingActorSystem(as), as)
 
     def runAndLog(r: Request[String, Nothing]): Unit = {
       println(Try(Await.result(r.send().map(_.unsafeBody), 60.seconds)))
