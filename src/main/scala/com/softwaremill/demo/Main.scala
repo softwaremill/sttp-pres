@@ -58,7 +58,7 @@ object Main extends App {
       .response(asByteArray)
       .get(uri"http://example.com") // comment out
 
-    implicit val backend = HttpURLConnectionBackend
+    implicit val backend = HttpURLConnectionBackend()
 
     reqTemplate.send()
   }
