@@ -11,4 +11,5 @@ To summarize, sttp supports:
 * multipart uploads
 * http authentication
 * redirects
+* prometheus/brave integrations
 * ...
