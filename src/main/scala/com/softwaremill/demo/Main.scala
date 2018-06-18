@@ -6,9 +6,9 @@ import akka.actor.ActorSystem
 import akka.pattern.CircuitBreaker
 import akka.stream.scaladsl.Source
 import akka.util.ByteString
-
 import com.softwaremill.sttp.akkahttp.AkkaHttpBackend
 import com.softwaremill.sttp.asynchttpclient.monix.AsyncHttpClientMonixBackend
+import com.softwaremill.sttp.testing.SttpBackendStub
 import monix.eval.Task
 import monix.reactive.Observable
 
@@ -216,5 +216,19 @@ object Main extends App {
     }
   }
 
-  circuitBreaker()
+  def testing(): Unit = {
+    implicit val testingBackend = SttpBackendStub.synchronous
+      .whenRequestMatches(_.uri.path.startsWith(List("hello", "world")))
+      .thenRespond("Hello there!")
+      .whenRequestMatches(_.method == Method.POST)
+      .thenRespondServerError()
+
+    val response1 = sttp.get(uri"http://example.org/hello/world/here").send()
+    println(response1.body)
+
+    val response2 = sttp.post(uri"http://example.org/d/e").send()
+    println(response2.body)
+  }
+
+  testing()
 }

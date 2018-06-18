@@ -5,7 +5,7 @@ name := "sttp-pres"
 organization := "com.softwaremill"
 scalaVersion := "2.12.5"
 
-val sttpVersion = "1.1.13"
+val sttpVersion = "1.2.0-RC6"
 
 libraryDependencies ++= Seq(
   "com.softwaremill.sttp" %% "core" % sttpVersion,
