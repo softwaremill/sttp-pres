@@ -1,15 +1,8 @@
-To summarize, sttp supports:
+Simple Scala Stack
+------------------
 
-* synchronous and asynchronous execution via Futures/Scalaz/Monix/Cats
-* HttpURLConnection, Akka, Async HTTP Client and OkHttp backends
+Let's use simple code to solve simple problems!
 
-* uri interpolator
-* compression
-* cookies
-* sending form data
-* uploading/downloading files
-* multipart uploads
-* http authentication
-* redirects
-* prometheus/brave integrations
-* ...
+https://blog.softwaremill.com/simple-scala-stack-70fc786132b5
+
+See also: quicklens, macwire

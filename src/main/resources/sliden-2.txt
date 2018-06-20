@@ -1,0 +1,15 @@
+To summarize, sttp supports:
+
+* synchronous and asynchronous execution via Futures/Scalaz/Monix/Cats
+* HttpURLConnection, Akka, Async HTTP Client and OkHttp backends
+
+* uri interpolator
+* compression
+* cookies
+* sending form data
+* uploading/downloading files
+* multipart uploads
+* http authentication
+* redirects
+* prometheus/brave integrations
+* ...
